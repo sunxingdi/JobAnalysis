@@ -19,6 +19,9 @@ logging.basicConfig(level=logging.ERROR,
                     filename='diary.log',
                     filemode='a')
 
+global INIT_TBL_FLAG
+INIT_TBL_FLAG = 1
+
 def processInfo(info, para):
     """
     信息存储
@@ -43,6 +46,16 @@ def processInfo(info, para):
                     #+ str(time.localtime().tm_sec)
         #print 'create table:', tablename
 
+        # 如果存在表单先删除
+        if INIT_TBL_FLAG is 1:
+            print 'start init table...'
+            SQL = "DROP TABLE IF EXISTS " + tablename
+            cursor.execute(SQL)
+
+            global INIT_TBL_FLAG
+            INIT_TBL_FLAG = 0
+
+        # 创建表单
         SQL = "CREATE TABLE IF NOT EXISTS " \
                         + tablename \
                         + "(Id INT PRIMARY KEY AUTO_INCREMENT," \
@@ -52,8 +65,8 @@ def processInfo(info, para):
                         + "city                VARCHAR(100)," \
                         + "createTime          VARCHAR(100)," \
                         + "salary              VARCHAR(100)," \
-                        + "salarymin           VARCHAR(100)," \
-                        + "salarymax           VARCHAR(100)," \
+                        + "salarymin           int(16)," \
+                        + "salarymax           int(16)," \
                         + "industryField       VARCHAR(100)," \
                         + "district            VARCHAR(100)," \
                         + "positionAdvantage   VARCHAR(100)," \
@@ -66,8 +79,6 @@ def processInfo(info, para):
                         + "subwayline          VARCHAR(100))"
 
         #print "SQL:",SQL
-
-        #创建表单
         cursor.execute(SQL)
 
         ColumnNameList = r"companyFullName,positionName,education,city,createTime," \
@@ -79,17 +90,25 @@ def processInfo(info, para):
         for job in info:
             # 将salary字段分解为最大值和最小值存储，便于分析
 
-            print 'salary:',str(job['salary'])
+            #print 'salary:',str(job['salary'])
 
             if '-' in str(job['salary']):
-                print 'find-'
+                #print 'find-'
                 salarymin = str(job['salary']).split('-')[0]
+                salarymin = int(re.sub("\D", "", salarymin))
+
+
                 salarymax = str(job['salary']).split('-')[1]
+                salarymax = int(re.sub("\D", "", salarymax))
             else:
                 salarymin = str(job['salary'])
-                salarymax = ''
-            #print 'salarymin:',salarymin
-            #print 'salarymax:',salarymax
+                salarymin = int(re.sub("\D", "", salarymin))
+
+                salarymax = 0
+
+
+            print 'salarymin:',salarymin
+            print 'salarymax:',salarymax
 
             SQL = "INSERT INTO " + tablename + "(" + ColumnNameList + ") VALUE (" \
                             + "'"   + str(job['companyFullName']) \
@@ -98,9 +117,9 @@ def processInfo(info, para):
                             + "','" + str(job['city']) \
                             + "','" + str(job['createTime']) \
                             + "','" + str(job['salary']) \
-                            + "','" + str(salarymin) \
-                            + "','" + str(salarymax) \
-                            + "','" + str(job['industryField']) \
+                            + "',"  + str(salarymin) \
+                            + ","   + str(salarymax) \
+                            + ",'"  + str(job['industryField']) \
                             + "','" + str(job['district']) \
                             + "','" + str(job['positionAdvantage']) \
                             + "','" + str(job['companySize']) \
@@ -145,19 +164,28 @@ def getInfo(url, para):
 
     info = []
     for i in range(1, pageCount+1):
-        print('第%s页开始爬取' % i)
-        para['pn'] = str(i)
-        htmlCode = generalHttps.post(url, para=para, headers=hd)
-        generalParse = Parse(htmlCode)
-        info = getInfoDetail(generalParse)
-        if info:
-            flag = processInfo(info, para)
-            if flag is None:
-                print('存储异常')
-                return None
-            print('第%s页存储完成' % i)
-        else:
-            print('第%s页内容为空，不存储' % i)
+        try:
+            print('第%s页开始爬取' % i)
+            para['pn'] = str(i)
+            htmlCode = generalHttps.post(url, para=para, headers=hd)
+            generalParse = Parse(htmlCode)
+            info = getInfoDetail(generalParse)
+            if info:
+                flag = processInfo(info, para)
+                if flag is None:
+                    print('存储异常')
+                    #return None
+                print('第%s页存储完成' % i)
+            else:
+                print('第%s页内容为空，不存储' % i)
+
+        except Exception, e:
+            logging.error('Process except')
+            print 'str(Exception):\t', str(Exception)
+            print 'str(e):\t\t', str(e)
+            print 'repr(e):\t', repr(e)
+            print 'e.message:\t', e.message
+
         time.sleep(2)
     return flag
 
