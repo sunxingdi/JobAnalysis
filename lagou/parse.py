@@ -10,7 +10,10 @@ class Parse:
     '''
     def __init__(self, htmlCode):
         self.htmlCode = htmlCode
-        self.json = demjson.decode(htmlCode)
+        try:
+            self.json = demjson.decode(htmlCode)
+        except:
+            print r"[ERROR]demjson.JSONDecodeError"
         pass
 
     def parseTool(self,content):

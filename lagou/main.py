@@ -37,10 +37,10 @@ def processInfo(info, para):
         tablename = "lagoujob" \
                     + str(time.localtime().tm_year) \
                     + str(time.localtime().tm_mon) \
-                    + str(time.localtime().tm_mday) \
-                    + str(time.localtime().tm_hour) \
-                    + str(time.localtime().tm_min) \
-                    + str(time.localtime().tm_sec)
+                    + str(time.localtime().tm_mday)
+                    #+ str(time.localtime().tm_hour)
+                    #+ str(time.localtime().tm_min) \
+                    #+ str(time.localtime().tm_sec)
         #print 'create table:', tablename
 
         SQL = "CREATE TABLE IF NOT EXISTS " \
@@ -52,6 +52,8 @@ def processInfo(info, para):
                         + "city                VARCHAR(100)," \
                         + "createTime          VARCHAR(100)," \
                         + "salary              VARCHAR(100)," \
+                        + "salarymin           VARCHAR(100)," \
+                        + "salarymax           VARCHAR(100)," \
                         + "industryField       VARCHAR(100)," \
                         + "district            VARCHAR(100)," \
                         + "positionAdvantage   VARCHAR(100)," \
@@ -69,12 +71,26 @@ def processInfo(info, para):
         cursor.execute(SQL)
 
         ColumnNameList = r"companyFullName,positionName,education,city,createTime," \
-                       + r"salary,industryField,district,positionAdvantage," \
+                       + r"salary,salarymin,salarymax,industryField,district,positionAdvantage," \
                        + r"companySize,jobNature,workYear,firstType,secondType,stationname,subwayline"
 
-        print 'info',info
+        #print 'info',info
 
         for job in info:
+            # 将salary字段分解为最大值和最小值存储，便于分析
+
+            print 'salary:',str(job['salary'])
+
+            if '-' in str(job['salary']):
+                print 'find-'
+                salarymin = str(job['salary']).split('-')[0]
+                salarymax = str(job['salary']).split('-')[1]
+            else:
+                salarymin = str(job['salary'])
+                salarymax = ''
+            #print 'salarymin:',salarymin
+            #print 'salarymax:',salarymax
+
             SQL = "INSERT INTO " + tablename + "(" + ColumnNameList + ") VALUE (" \
                             + "'"   + str(job['companyFullName']) \
                             + "','" + str(job['positionName']) \
@@ -82,6 +98,8 @@ def processInfo(info, para):
                             + "','" + str(job['city']) \
                             + "','" + str(job['createTime']) \
                             + "','" + str(job['salary']) \
+                            + "','" + str(salarymin) \
+                            + "','" + str(salarymax) \
                             + "','" + str(job['industryField']) \
                             + "','" + str(job['district']) \
                             + "','" + str(job['positionAdvantage']) \
@@ -93,7 +111,7 @@ def processInfo(info, para):
                             + "','" + str(job['stationname']) \
                             + "','" + str(job['subwayline']) \
                             + "'"   + ")"
-            print "SQL:", SQL
+            #print "SQL:", SQL
             cursor.execute(SQL)
 
         # 提交，不然无法保存新建或者修改的数据
@@ -132,8 +150,14 @@ def getInfo(url, para):
         htmlCode = generalHttps.post(url, para=para, headers=hd)
         generalParse = Parse(htmlCode)
         info = getInfoDetail(generalParse)
-        flag = processInfo(info, para)
-        print('第%s页存储完成' % i)
+        if info:
+            flag = processInfo(info, para)
+            if flag is None:
+                print('存储异常')
+                return None
+            print('第%s页存储完成' % i)
+        else:
+            print('第%s页内容为空，不存储' % i)
         time.sleep(2)
     return flag
 
@@ -156,7 +180,7 @@ def main(url, para):
         return None
 
 if __name__ == '__main__':
-    print '启动时间：',time.localtime()
+    print '启动时间：',time.asctime( time.localtime(time.time()) )
     kdList = [u'']
     cityList = [u'成都']
     url = 'https://www.lagou.com/jobs/positionAjax.json'
@@ -166,4 +190,4 @@ if __name__ == '__main__':
         flag = main(url, para)
         if flag: print('%s爬取成功' % city)
         else: print('%s爬取失败' % city)
-    print '结束时间：', time.localtime()
+    print '结束时间：', time.asctime( time.localtime(time.time()) )
